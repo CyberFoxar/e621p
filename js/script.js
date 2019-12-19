@@ -38,6 +38,9 @@ ep.photos = [];
 // init to -1 until the first image is loaded
 var activeIndex = -1;
 
+// CyberFoxar's addons
+let typing = false;
+
 
 // IE doesn't have indexOf, wtf...
 if (!Array.indexOf) {
@@ -63,6 +66,46 @@ window.log = function () {
 };
 
 $(function () {
+
+    // CyberFoxar's addition
+    const btn = document.getElementById("searchBtn");
+    const tagsBox = document.getElementById("tagsBox");
+    const pageBox = document.getElementById("pageBox");
+    const limitBox = document.getElementById("limitBox");
+    btn.addEventListener("click", ()=>{
+        //Reinit some data:
+        ep = {};
+        ep.photos = [];
+        e621pFailedImageNumber = 0;
+        e621pSuccessImageNumber = 0;
+        activeIndex = -1;
+
+        e621pPageNumber=pageBox.value;
+        e621pLimit = limitBox.value;
+        let tags = tagsBox.value;
+        tags = tags.replace(/\s+/g,"+");
+        //console.log(tags);
+        e621pTags=tags;
+        var div = document.getElementById('pictureSlider');
+        while(div.firstChild){
+            div.firstChild.remove();
+        }
+        div.appendChild(document.createElement("div"));
+
+        var thisNavboxUl = document.getElementById("allNumberButtons");
+        while(thisNavboxUl.firstChild){
+            thisNavboxUl.firstChild.remove();
+        }
+
+        getRedditImages();
+    });
+
+    tagsBox.addEventListener("focus",()=>{
+        typing = true;
+    });
+    tagsBox.addEventListener("blur",()=>{
+        typing = false;
+    });
 
     $("#subredditUrl").text("Loading E621 Slideshow");
     $("#navboxTitle").text("Loading E621 Slideshow");
@@ -341,7 +384,7 @@ $(function () {
 
     var addNumberButton = function (numberButton) {
         var navboxUls = $(".navbox ul");
-        var thisNavboxUl = navboxUls[navboxUls.length - 1];
+        var thisNavboxUl = document.getElementById("allNumberButtons");//navboxUls[navboxUls.length - 1];
 
         var newListItem = $("<li />").appendTo(thisNavboxUl);
         numberButton.appendTo(newListItem);
@@ -351,6 +394,7 @@ $(function () {
     };
 
     var addImageSlide = function (pic) {
+        //console.log("adding imageSlide:", pic);
         /*
         var pic = {
             "title": title,
@@ -361,25 +405,24 @@ $(function () {
         }
         */
         pic.isVideo = false;
-        if (pic.url.indexOf('gfycat.com') >= 0 | (pic.url.substr(pic.url.lastIndexOf('.')+1)) == "webm"){
+        if (pic.url.substr(pic.url.lastIndexOf('.')+1) == "webm"){
             pic.isVideo = true;
             e621pSuccessImageNumber++;
         } else if (isImageExtension(pic.url)) {
+            //console.log("Image is a simple picture");
             // simple image
             e621pSuccessImageNumber++;
         } else {
-            var betterUrl = tryConvertUrl(pic.url);
-            if(betterUrl !== '') {
-                pic.url = betterUrl;
-                e621pSuccessImageNumber++;
-            } else {
-                if (ep.debug) {
-                    reason = ('Picture isn\'t a usable format.');
-                    console.log('Failed: ' + pic.url + ' Reason: ' + reason);
-                    e621pFailedImageNumber++;
-                }
-                return;
-            }
+            // var betterUrl = tryConvertUrl(pic.url);
+            // if(betterUrl !== '') {
+            //     pic.url = betterUrl;
+            //     e621pSuccessImageNumber++;
+            // } else {
+                reason = ('Picture isn\'t a usable format.');
+                console.log('Failed: ' + pic.url + ' Reason: ' + reason);
+                e621pFailedImageNumber++;
+            return;
+            //}
         }
 
         ep.foundOneImage = true;
@@ -424,6 +467,9 @@ $(function () {
 
     // Register keyboard events on the whole document
     $(document).keyup(function (e) {
+        if(typing){
+            return;
+        }
         if(e.ctrlKey) {
             // ctrl key is pressed so we're most likely switching tabs or doing something
             // unrelated to redditp UI
@@ -521,8 +567,9 @@ $(function () {
         // Set the active index to the used image index
         activeIndex = imageIndex;
 
-        if (isLastImage(activeIndex) && ep.subredditUrl.indexOf('/imgur') != 0) {
+        if (isLastImage(activeIndex) != 0) {
             // e621pPageNumber++;
+            //console.log("Called");
             getRedditImages();
         }
     };
@@ -745,7 +792,7 @@ $(function () {
         }
 
         var jsonUrl = "https://e621.net/post/index.json?tags="+e621pRating+"+"+e621pTags +"&limit="+ e621pLimit+"&page="+e621pPageNumber;
-        //console.log(jsonUrl);
+        console.log(jsonUrl);
         //log(jsonUrl);
         var failedAjax = function (data) {
             alert("Failed ajax, maybe a bad url? Sorry about that :(");
@@ -794,6 +841,9 @@ $(function () {
                 startAnimation(0);
             }
 
+            console.log(e621pFailedImageNumber);
+            console.log(e621pSuccessImageNumber);
+            console.log(e621pLimit);
             if (e621pFailedImageNumber + e621pSuccessImageNumber == e621pLimit) {
                 e621pPageNumber++;
                 if(isLastImage(activeIndex)){
@@ -802,9 +852,6 @@ $(function () {
                 }
                 return;
             }else{
-                // console.log(e621pFailedImageNumber);
-                // console.log(e621pSuccessImageNumber);
-                // console.log(e621pLimit);
                 alert("No more data from this URL :(")
                 return;
             }
